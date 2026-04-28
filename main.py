@@ -8,9 +8,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
 from PyQt5.QtGui import QImage, QPixmap, QFont
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 
-# =====================================================================
-# تنظیمات MediaPipe برای تشخیص آناتومی بدن انسان (Pose Detection)
-# =====================================================================
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(
     static_image_mode=False, 
@@ -18,9 +15,6 @@ pose = mp_pose.Pose(
     min_tracking_confidence=0.5
 )
 
-# =====================================================================
-# تابع کمکی محاسبه فاصله histogram رنگ (Bhattacharyya distance)
-# =====================================================================
 def color_histogram_distance(img1, img2, bins=32):
     # تبدیل به HSV برای رنگ‌سنجی بهتر
     hsv1 = cv2.cvtColor(img1, cv2.COLOR_BGR2HSV)
@@ -35,9 +29,6 @@ def color_histogram_distance(img1, img2, bins=32):
     dist = cv2.compareHist(hist1, hist2, cv2.HISTCMP_BHATTACHARYYA)
     return dist
 
-# =====================================================================
-# ترد اسکنر محیط (مدیریت دوربین، تشخیص حرکت و بافر رم با Debounce پیشرفته)
-# =====================================================================
 class ScannerThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
     motion_detected_signal = pyqtSignal(list, tuple)
@@ -93,30 +84,22 @@ class ScannerThread(QThread):
                         break
 
             elif self.debounce_active:
-                # جمع آوری فریم‌ها برای تایید تغییر رنگ
                 self.debounce_frames.append(frame.copy())
 
                 x, y, w, h = self.debounce_bbox
 
-                # بررسی تغییر رنگ در ناحیه مورد نظر نسبت به فریم مرجع
                 current_patch = frame[y:y+h, x:x+w]
                 color_dist = color_histogram_distance(self.debounce_color_ref, current_patch)
-
-                # اگر فاصله رنگ کمتر از 0.3 شد یعنی تغییر قابل توجه است (0 معتبر است، 1 خیلی متفاوت)
-                # البته ممکنه نور و سایه و نویز وجود داشته باشه؛ بنابراین شرایط زیر را اضافه می‌کنیم:
-                # باید رنگ تغییر ثابت یا در حال افزایش باشد در چند فریم اخیر.
 
                 # ذخیره مقدار فاصله اخیر
                 if not hasattr(self, 'color_dist_history'):
                     self.color_dist_history = deque(maxlen=5)
                 self.color_dist_history.append(color_dist)
 
-                # شرط تایید حرکت: فاصله رنگ باید بالاتر از 0.2 و رو به افزایش باشد (ثبات تغییر رنگ)
                 dist_array = np.array(self.color_dist_history)
                 increasing = all(dist_array[i] <= dist_array[i+1]+0.01 for i in range(len(dist_array)-1))
                 color_change_detected = (color_dist > 0.5 and increasing)
 
-                # همراه با تغییر رنگ، بررسی کانتورهای جدید نیز انجام شود:
                 fg_roi = fgMask[y:y+h, x:x+w]
                 contours_roi, _ = cv2.findContours(fg_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 motion_area = sum(cv2.contourArea(c) for c in contours_roi)

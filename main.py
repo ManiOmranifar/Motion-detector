@@ -8,9 +8,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
 from PyQt5.QtGui import QImage, QPixmap, QFont
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 
-# =====================================================================
-# تنظیمات MediaPipe برای تشخیص آناتومی بدن انسان (Pose Detection)
-# =====================================================================
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(
     static_image_mode=False, 
